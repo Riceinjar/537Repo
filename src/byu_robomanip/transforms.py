@@ -21,6 +21,10 @@ def rot2(theta: float) -> NDArray:
     # TODO: Implement the 2D SO(2) rotation matrix.
     # HW02 student task
 
+    R = np.matrix([[np.cos(theta), -np.sin(theta)], 
+                   [np.sin(theta), np.cos(theta)]])
+
+    return R
     raise NotImplementedError("Complete rot2 for HW02")
 
 
@@ -34,7 +38,11 @@ def rotx(theta: float) -> NDArray:
     """
     # TODO: Implement the 3D rotation matrix about the x-axis.
     # HW02 student task
+    R = np.matrix([[1, 0, 0], 
+                [0, np.cos(theta), -np.sin(theta)],
+                [0, np.sin(theta), np.cos(theta)]])
 
+    return R
     raise NotImplementedError("Complete rotx for HW02")
 
 
@@ -47,7 +55,10 @@ def roty(theta: float) -> NDArray:
     """
     # TODO: Implement the 3D rotation matrix about the y-axis.
     # HW02 student task
-
+    R = np.matrix([[np.cos(theta), 0, np.sin(theta)], 
+                [0, 1, 0],
+                [-np.sin(theta), 0, np.cos(theta)]])
+    return R
     raise NotImplementedError("Complete roty for HW02")
 
 
@@ -61,6 +72,10 @@ def rotz(theta: float) -> NDArray:
     # TODO: Implement the 3D rotation matrix about the z-axis.
     # HW02 student task
 
+    R = np.matrix([[np.cos(theta), -np.sin(theta), 0], 
+                [np.sin(theta), np.cos(theta), 0],
+                [0, 0, 1]])
+    return R
     raise NotImplementedError("Complete rotz for HW02")
 
 
@@ -74,7 +89,8 @@ def rot_inv(R: NDArray) -> NDArray:
     """
     # TODO: Implement matrix inversion for SO(2) and SO(3).
     # HW02 student task
-
+    R_inv  = R.T
+    return R_inv
     raise NotImplementedError("Complete rot_inv for HW02")
 
 
@@ -93,6 +109,11 @@ def se3(R: NDArray = np.eye(3), p: NDArray = np.zeros(3)) -> NDArray:
     # TODO: Construct a 4x4 homogeneous transform from a rotation matrix and translation vector.
     # HW03 student task
 
+    T = np.zeros((4,4))
+    T[0:3, 0:3] = R
+    T[0:3, -1] = p
+    T[-1, -1] = 1
+    return T
     raise NotImplementedError("Complete se3 for HW03")
 
 
@@ -108,7 +129,12 @@ def inv(T: NDArray) -> NDArray:
 
     # TODO: Implement the inverse of a 4x4 homogeneous transform.
     # HW03 student task
-
+    R = T[0:3, 0:3]
+    P = T[0:3, -1]
+    T_inv = np.eye(4)
+    T_inv[0:3, 0:3] = R.T
+    T_inv[0:3, -1] = -R.T@P
+    return T_inv
     raise NotImplementedError("Complete inv for HW03")
 
 
