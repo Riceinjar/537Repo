@@ -13,9 +13,16 @@ from byu_robomanip import transforms as tr
 viz = VizScene()                                    # Create 3D scene
 viz.add_frame(np.eye(4), label='world')            # Add coordinate frame
 viz.add_arm(arm, q=[0, 0, 0])                     # Add robot arm
-viz.hold()                                         # Keep window open
-viz.close_viz()                                   # Clean shutdown
+try:
+    viz.hold()                                     # Keep window open
+finally:
+    viz.close_viz()                                # Clean shutdown
 ```
+
+For a scene that will not be reused, put `hold()` and `close_viz()` in a
+`try/finally` block. This remains safe if the user closes the window manually;
+`close_viz()` is idempotent. In a notebook, this prevents an old OpenGL scene
+from interfering with a later cell that creates another `VizScene`.
 
 ## VizScene Methods Quick Reference
 
@@ -123,13 +130,13 @@ planar.play()
 T = np.eye(4)
 
 # Translation only
-T = tr.se3(t=[1, 0, 0])
+T = tr.se3(p=[1, 0, 0])
 
 # Rotation only
 T = tr.se3(R=tr.rotz(np.pi/4))
 
 # Combined
-T = tr.se3(R=tr.rotx(np.pi/6), t=[0.5, 0.3, 0.8])
+T = tr.se3(R=tr.rotx(np.pi/6), p=[0.5, 0.3, 0.8])
 ```
 
 ## Troubleshooting

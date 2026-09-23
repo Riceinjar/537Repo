@@ -51,9 +51,11 @@ viz = VizScene()
 # Add world coordinate frame
 viz.add_frame(np.eye(4), label='world', axes_label='w')
 
-# Keep window open
-viz.hold()  # Blocks until window closed
-viz.close_viz()  # Clean shutdown
+# Keep window open and always release the scene afterward
+try:
+    viz.hold()  # Blocks until window closed
+finally:
+    viz.close_viz()  # Clean shutdown
 ```
 
 ### Quick Robot Visualization
@@ -69,8 +71,10 @@ arm = kin.SerialArm(dh, jt=['r', 'r', 'r'])
 # Visualize
 viz = VizScene()
 viz.add_arm(arm, q=[0, np.pi/4, -np.pi/2])
-viz.hold()
-viz.close_viz()
+try:
+    viz.hold()
+finally:
+    viz.close_viz()
 ```
 
 ## Core Classes
@@ -356,14 +360,19 @@ viz.wander(
 # Rotate view: left mouse drag
 # Pan: right mouse drag
 
-# Window stays open until manually closed
-viz.hold()
+# Window stays open until manually closed. For a scene that will not be
+# reused, protect the hold with finally so cleanup also runs on interruption.
+try:
+    viz.hold()
+finally:
+    viz.close_viz()
 
-# Window stays open for specific time
-viz.hold(seconds=5.0)
-
-# Clean shutdown
-viz.close_viz()
+# For a timed hold on a separate scene, use the same pattern:
+viz = VizScene()
+try:
+    viz.hold(seconds=5.0)
+finally:
+    viz.close_viz()
 ```
 
 ## 2D Planar Visualization
@@ -591,7 +600,9 @@ viz.add_ellipse(pos, orient, size, wireframe=True)
 
 ### Best Practices
 
-1. **Always clean up**: Use `viz.close_viz()` when done
+1. **Always clean up**: Wrap a final `viz.hold()` in `try/finally` and call
+   `viz.close_viz()` when the scene will not be reused. This is especially
+   important in Jupyter notebooks, where the Qt application remains alive.
 2. **Reasonable scales**: Keep coordinates in range [-10, 10] for best results
 3. **Color consistency**: Use predefined colors for consistency
 4. **Performance**: Lower resolution for animations, higher for final renders
