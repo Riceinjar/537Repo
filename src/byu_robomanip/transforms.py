@@ -8,9 +8,25 @@ import numpy as np
 from numpy import sin, cos, sqrt
 from numpy.typing import NDArray
 from byu_robomanip.utility import clean_rotation_matrix
+import sympy as sp
 
 
 ## 2D Rotations
+def dh_transform(theta, d, a, alpha, symbolic = False):
+    if symbolic:
+        return sp.Matrix([
+            [sp.cos(theta), -sp.sin(theta)*sp.cos(alpha),  sp.sin(alpha)*sp.sin(theta), a*sp.cos(theta)],
+            [sp.sin(theta),  sp.cos(alpha)*sp.cos(theta), -sp.sin(alpha)*sp.cos(theta), a*sp.sin(theta)],
+            [0,              sp.sin(alpha),                sp.cos(alpha),               d],
+            [0,              0,                             0,                           1]
+        ])
+    return np.array([
+        [np.cos(theta), -np.sin(theta)*np.cos(alpha),  np.sin(theta)*np.sin(alpha), a*np.cos(theta)],
+        [np.sin(theta),  np.cos(theta)*np.cos(alpha), -np.cos(theta)*np.sin(alpha), a*np.sin(theta)],
+        [0,              np.sin(alpha),               np.cos(alpha),               d],
+        [0,              0,                           0,                           1]
+        ], dtype=float)
+
 def rot2(theta: float) -> NDArray:
     """
     R = rot2(th)
