@@ -6,10 +6,14 @@
 # * Run the provided checks and reason through what each operation means.
 
 # %%
+import importlib
 from byu_robomanip import transforms as tr
 import numpy as np
+import sympy as sp
+from IPython.display import display
 
 np.set_printoptions(precision=4, suppress=True)
+importlib.reload(tr)
 
 
 # %% [markdown]
@@ -20,12 +24,19 @@ np.set_printoptions(precision=4, suppress=True)
 # $$[\theta, r] = \left[\begin{matrix}1.13\\0.3574\\0.3574\\0.8629\end{matrix}\right] $$
 # $$\mathcal{Q} = \left[\begin{matrix}0.8446\\0.1913\\0.1913\\0.4619\end{matrix}\right] $$
 
+
+#%%
+phi, theta, psi = sp.symbols("phi, theta, psi")
+display(tr.rotz(psi, symbolic=True) @ tr.roty(theta, symbolic=True) @ tr.rotx(phi, symbolic=True))
+
+
 # %%
 R_test = (
     tr.rotx(45 * np.pi / 180.0)
     @ tr.rotz(45 * np.pi / 180.0)
     @ tr.roty(45 * np.pi / 180.0)
 )
+# print('R_test:\n', R_test)
 
 print("Roll, pitch, yaw angles:")
 print(tr.R2rpy(R_test))
@@ -65,3 +76,5 @@ R = tr.quat2R(np.array([0.707, 0.707, 0.0, 0.0]))
 print("R for quaternion2R was:")
 print(R)
 
+
+#%%

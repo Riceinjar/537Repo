@@ -45,7 +45,7 @@ def rot2(theta: float) -> NDArray:
 
 
 ## 3D Rotations
-def rotx(theta: float) -> NDArray:
+def rotx(theta: float, symbolic = False) -> NDArray:
     """
     R = rotx(theta)
 
@@ -54,15 +54,18 @@ def rotx(theta: float) -> NDArray:
     """
     # TODO: Implement the 3D rotation matrix about the x-axis.
     # HW02 student task
-    R = np.matrix([[1, 0, 0], 
-                [0, np.cos(theta), -np.sin(theta)],
-                [0, np.sin(theta), np.cos(theta)]])
+    mod = sp if symbolic else np
+    matrix_type = sp.Matrix if symbolic else np.array
+
+    R = matrix_type([[1, 0, 0], 
+                [0, mod.cos(theta), -mod.sin(theta)],
+                [0, mod.sin(theta), mod.cos(theta)]])
 
     return R
     raise NotImplementedError("Complete rotx for HW02")
 
 
-def roty(theta: float) -> NDArray:
+def roty(theta: float, symbolic = False) -> NDArray:
     """
     R = roty(theta)
 
@@ -71,14 +74,17 @@ def roty(theta: float) -> NDArray:
     """
     # TODO: Implement the 3D rotation matrix about the y-axis.
     # HW02 student task
-    R = np.matrix([[np.cos(theta), 0, np.sin(theta)], 
+    mod = sp if symbolic else np
+    matrix_type = sp.Matrix if symbolic else np.array
+
+    R = matrix_type([[mod.cos(theta), 0, mod.sin(theta)], 
                 [0, 1, 0],
-                [-np.sin(theta), 0, np.cos(theta)]])
+                [-mod.sin(theta), 0, mod.cos(theta)]])
     return R
     raise NotImplementedError("Complete roty for HW02")
 
 
-def rotz(theta: float) -> NDArray:
+def rotz(theta: float, symbolic = False) -> NDArray:
     """
     R = rotz(theta)
 
@@ -87,9 +93,11 @@ def rotz(theta: float) -> NDArray:
     """
     # TODO: Implement the 3D rotation matrix about the z-axis.
     # HW02 student task
+    mod = sp if symbolic else np
+    matrix_type = sp.Matrix if symbolic else np.array
 
-    R = np.matrix([[np.cos(theta), -np.sin(theta), 0], 
-                [np.sin(theta), np.cos(theta), 0],
+    R = matrix_type([[mod.cos(theta), -mod.sin(theta), 0], 
+                [mod.sin(theta), mod.cos(theta), 0],
                 [0, 0, 1]])
     return R
     raise NotImplementedError("Complete rotz for HW02")
@@ -154,7 +162,7 @@ def inv(T: NDArray) -> NDArray:
     raise NotImplementedError("Complete inv for HW03")
 
 
-def R2rpy(R: NDArray) -> NDArray:
+def R2rpy(R: NDArray, onlyQuadrantOne = True, bookConvention = True) -> NDArray:
     """
     rpy = R2rpy(R)
 
@@ -166,6 +174,23 @@ def R2rpy(R: NDArray) -> NDArray:
 
     # TODO: Implement conversion from a rotation matrix to roll-pitch-yaw angles.
     # HW04 student task
+    g = R[2,0]
+    d = R[1, 0]
+    h = R[2, 1]
+    if (onlyQuadrantOne == True): # keeping in case want to not use arctan2
+        theta = np.arcsin(-g) # pitch
+        phi = np.arcsin(h/np.cos(theta)) # roll
+        psi = np.arcsin(d/np.cos(theta)) # yaw
+    else: # have not yet implemented arctan2
+        print('  Not yet implemented arctan2 for four quadrants.  ')
+        theta = np.arcsin(-g) # pitch
+        phi = np.arcsin(h/np.cos(theta)) # roll
+        psi = np.arcsin(d/np.cos(theta)) # yaw
+
+    rpy = np.array([phi, theta, psi])  # roll-pitch-yaw
+    if bookConvention:
+        rpy = np.array([psi, theta, phi]) # bc book is using stupid convention
+    return rpy
 
     raise NotImplementedError("Complete R2rpy for HW04")
 
@@ -185,7 +210,9 @@ def R2axis(R: NDArray) -> NDArray:
 
     # TODO: Implement conversion from a rotation matrix to axis-angle form.
     # HW04 student task
-
+    angle = np.acos((R[0,0] + R[1,1] + R[2,2] -1)/2)
+    r = 1/(2*np.sin(angle)) * np.array([R[2,1]-R[1,2], R[0,2]-R[2,0], R[1,0]-R[0,1]])
+    return np.array([angle, r[0], r[1], r[2]])
     raise NotImplementedError("Complete R2axis for HW04")
 
 
@@ -205,6 +232,20 @@ def axis2R(angle: float, axis: NDArray) -> NDArray:
     # TODO: Implement conversion from axis-angle form to a rotation matrix.
     # HW04 student task
 
+    # axis = np.asarray(axis, dtype=float)
+    # axis = axis / np.linalg.norm(axis)
+
+    rx, ry, rz = axis
+    c = np.cos(angle)
+    s = np.sin(angle)
+    v = 1 - c
+
+    R = np.array([
+        [rx**2 * v + c,        rx * ry * v - rz * s,   rx * rz * v + ry * s],
+        [rx * ry * v + rz * s,  ry**2 * v + c,          ry * rz * v - rx * s],
+        [rx * rz * v - ry * s,  ry * rz * v + rx * s,   rz**2 * v + c]
+    ], dtype=float)
+    return R
     raise NotImplementedError("Complete axis2R for HW04")
 
 
@@ -221,7 +262,25 @@ def R2quat(R: NDArray) -> NDArray:
 
     # TODO: Implement conversion from a rotation matrix to quaternion form.
     # HW04 student task
-
+    # angle_axis = R2axis(R)
+    # angle, axis = [angle_axis[0], angle_axis[1:]]
+    # nu = np.cos(angle/2)
+    # ex, ey, ez = np.sin(axis/2*angle)
+    # return np.array([nu, ex, ey, ez])
+    r11 = R[0, 0]
+    r12 = R[0, 1]
+    r13 = R[0, 2]
+    r21 = R[1, 0]
+    r22 = R[1, 1]
+    r23 = R[1, 2]
+    r31 = R[2, 0]
+    r32 = R[2, 1]
+    r33 = R[2, 2]
+    nu = 1/2*np.sqrt(r11 + r22 + r33 +1)
+    ex, ey, ez = 1/2 * np.array([np.sign(r32 - r23) *np.sqrt(r11 -r22 -r33 +1),
+                        np.sign(r13 - r31) *np.sqrt(r22 -r33 -r11 +1),
+                        np.sign(r21 - r12) *np.sqrt(r33 -r11 -r22 +1)])
+    return np.array([nu, ex, ey, ez])
     raise NotImplementedError("Complete R2quat for HW04")
 
 
@@ -237,7 +296,14 @@ def quat2R(q: NDArray) -> NDArray:
 
     # TODO: Implement conversion from quaternion form to a rotation matrix.
     # HW04 student task
+    ang, ex, ey, ez = q
 
+    R = np.array([
+        [2*(ang**2 + ex**2) - 1,  2*(ex*ey - ang*ez),      2*(ex*ez + ang*ey)],
+        [2*(ex*ey + ang*ez),      2*(ang**2 + ey**2) - 1,  2*(ey*ez - ang*ex)],
+        [2*(ex*ez - ang*ey),      2*(ey*ez + ang*ex),      2*(ang**2 + ez**2) - 1]
+    ], dtype=float)
+    return R
     raise NotImplementedError("Complete quat2R for HW04")
 
 
@@ -258,5 +324,13 @@ def euler2R(th1: float, th2: float, th3: float, order: str = "xyz") -> NDArray:
 
     # TODO: Implement conversion from Euler angles to a rotation matrix.
     # HW04 student task
-
+    R = np.eye(len(order))
+    j = 0
+    theta = [th1, th2, th3]
+    for i in order:
+        if (i == 'x'): R = R @ rotx(theta[j])
+        if (i == 'y'): R = R @ roty(theta[j])
+        if (i == 'z'): R = R @ rotz(theta[j])
+        j+=1
+    return R
     raise NotImplementedError("Complete euler2R for HW04")

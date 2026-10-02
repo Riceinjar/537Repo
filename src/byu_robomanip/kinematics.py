@@ -32,6 +32,7 @@ def dh2A(dh: list[float], jt: str) -> Callable[[float], NDArray]:
     :return A: a function of the corresponding joint angle, A(q), that generates a 4x4
         numpy array representing the homogeneous transform from one link to the next
     """
+
     # if joint is revolute implement correct equations here:
     if jt == "r":
         # although A(q) is only a function of "q", the dh parameters are available to these next functions
@@ -46,6 +47,14 @@ def dh2A(dh: list[float], jt: str) -> Callable[[float], NDArray]:
             # start by assigning the DH parameters to be readable
             # notice that in the case of a revolute joint, q is added to the fixed "theta" offset (if there is one)
             # HW04 student task
+            theta, d, a, alpha = dh
+            theta += q
+
+            return np.array([
+                        [np.cos(theta), -np.sin(theta)*np.cos(alpha),  np.sin(theta)*np.sin(alpha), a*np.cos(theta)],
+                        [np.sin(theta),  np.cos(theta)*np.cos(alpha), -np.cos(theta)*np.sin(alpha), a*np.sin(theta)],
+                        [0,              np.sin(alpha),               np.cos(alpha),               d],
+                        [0,              0,                           0,                           1]])
             raise NotImplementedError("Complete dh2A for HW04")
 
     # if joint is prismatic implement correct equations here:
@@ -59,6 +68,14 @@ def dh2A(dh: list[float], jt: str) -> Callable[[float], NDArray]:
 
             # notice that in the case of a prismatic joint, q is added to the fixed "d" parameter
             # HW04 student task
+            theta, d, a, alpha = dh
+            d += q
+
+            return np.array([
+                        [np.cos(theta), -np.sin(theta)*np.cos(alpha),  np.sin(theta)*np.sin(alpha), a*np.cos(theta)],
+                        [np.sin(theta),  np.cos(theta)*np.cos(alpha), -np.cos(theta)*np.sin(alpha), a*np.sin(theta)],
+                        [0,              np.sin(alpha),               np.cos(alpha),               d],
+                        [0,              0,                           0,                           1]])
             raise NotImplementedError("Complete dh2A for HW04")
 
     return A
@@ -118,10 +135,11 @@ class SerialArm:
             # list.
 
             # HW04 student task
+            self.transforms.append(dh2A(self.dh[i], self.jt[i]))
 
-            raise NotImplementedError(
-                "Complete DH transform construction in SerialArm.__init__ for HW04"
-            )
+            # raise NotImplementedError(
+            #     "Complete DH transform construction in SerialArm.__init__ for HW04"
+            # )
 
         # assigning the base, and tip transforms that will be added to the default DH transformations.
         self.base = base.copy()
@@ -176,7 +194,7 @@ class SerialArm:
 
         :param Iterable[float] q: list or iterable of floats which represent the joint angles.
         :param int | Iterable[int] | None index: integer, list of two integers, or None.
-            If an integer, it represents end_frame and start_frame is 0.
+            If an integer, it represents end_frame. And the start_frame is 0.
             If an iterable of two integers, they represent (start_frame, end_frame).
             If None, then start_frame is 0 and end_frame is n.
         :param bool base: specify whether to use the base transform (T_0_in_base) in the calculation.
@@ -217,7 +235,16 @@ class SerialArm:
         # organize the code any way you like.
 
         # HW04 student task
+        T = np.eye(4)
+        if base and start_frame == 0:
+            T = T @ self.base
 
+        for i in range(start_frame, end_frame):
+            T = T @ self.transforms[i](q[i])
+
+        if tip:
+            T = T @ self.tip
+        return T
         raise NotImplementedError("Complete SerialArm.fk for HW04")
 
     def jacob(
