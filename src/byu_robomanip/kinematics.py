@@ -274,6 +274,24 @@ class SerialArm:
         # we are calculating the Jacobian in the base frame.
         # HW05 student task
 
+        poi_T = self.fk(q, index, base, tip)
+        poi_p = poi_T[:3,3]
+        J = np.zeros((6, index))
+        for i in range(0, index):
+            T = self.fk(q, index = i, base = base, tip = tip)
+            p = poi_p - T[:3,3]
+            Z = T[:3,:3] @ np.array([0,0,1])
+            if self.jt[i] == "r":
+                J_v = np.cross(Z, p)
+                J_w = Z
+            else:
+                J_v = Z
+                J_w = np.zeros((1, 3)) 
+            J[:3,i] = J_v
+            J[3:,i] = J_w
+
+        # print("\nthis is J: \n", J)
+        return J
         raise NotImplementedError("Complete SerialArm.jacob for HW05")
 
     def ik_position(

@@ -45,12 +45,12 @@ def rot2(theta: float) -> NDArray:
 
 
 ## 3D Rotations
-def rotx(theta: float, symbolic = False) -> NDArray:
+def rotx(phi: float, symbolic = False) -> NDArray:
     """
-    R = rotx(theta)
+    R = rotx(phi)
 
-    :param float theta: angle of rotation (rad)
-    :return R: 3x3 numpy array representing rotation about x-axis by amount theta
+    :param float phi: angle of rotation (rad)
+    :return R: 3x3 numpy array representing rotation about x-axis by amount phi
     """
     # TODO: Implement the 3D rotation matrix about the x-axis.
     # HW02 student task
@@ -58,8 +58,8 @@ def rotx(theta: float, symbolic = False) -> NDArray:
     matrix_type = sp.Matrix if symbolic else np.array
 
     R = matrix_type([[1, 0, 0], 
-                [0, mod.cos(theta), -mod.sin(theta)],
-                [0, mod.sin(theta), mod.cos(theta)]])
+                [0, mod.cos(phi), -mod.sin(phi)],
+                [0, mod.sin(phi), mod.cos(phi)]])
 
     return R
     raise NotImplementedError("Complete rotx for HW02")
@@ -84,20 +84,20 @@ def roty(theta: float, symbolic = False) -> NDArray:
     raise NotImplementedError("Complete roty for HW02")
 
 
-def rotz(theta: float, symbolic = False) -> NDArray:
+def rotz(psi: float, symbolic = False) -> NDArray:
     """
-    R = rotz(theta)
+    R = rotz(psi)
 
-    :param float theta: angle of rotation (rad)
-    :return R: 3x3 numpy array representing rotation about z-axis by amount theta
+    :param float psi: angle of rotation (rad)
+    :return R: 3x3 numpy array representing rotation about z-axis by amount psi
     """
     # TODO: Implement the 3D rotation matrix about the z-axis.
     # HW02 student task
     mod = sp if symbolic else np
     matrix_type = sp.Matrix if symbolic else np.array
 
-    R = matrix_type([[mod.cos(theta), -mod.sin(theta), 0], 
-                [mod.sin(theta), mod.cos(theta), 0],
+    R = matrix_type([[mod.cos(psi), -mod.sin(psi), 0], 
+                [mod.sin(psi), mod.cos(psi), 0],
                 [0, 0, 1]])
     return R
     raise NotImplementedError("Complete rotz for HW02")
@@ -162,7 +162,7 @@ def inv(T: NDArray) -> NDArray:
     raise NotImplementedError("Complete inv for HW03")
 
 
-def R2rpy(R: NDArray, onlyQuadrantOne = True, bookConvention = True) -> NDArray:
+def R2rpy(R: NDArray, onlyQuadrantOne = False, bookConvention = True) -> NDArray:
     """
     rpy = R2rpy(R)
 
@@ -174,18 +174,23 @@ def R2rpy(R: NDArray, onlyQuadrantOne = True, bookConvention = True) -> NDArray:
 
     # TODO: Implement conversion from a rotation matrix to roll-pitch-yaw angles.
     # HW04 student task
-    g = R[2,0]
-    d = R[1, 0]
-    h = R[2, 1]
+    r11 = R[0, 0]
+    r12 = R[0, 1]
+    r13 = R[0, 2]
+    r21 = R[1, 0]
+    r22 = R[1, 1]
+    r23 = R[1, 2]
+    r31 = R[2, 0]
+    r32 = R[2, 1]
+    r33 = R[2, 2]
     if (onlyQuadrantOne == True): # keeping in case want to not use arctan2
-        theta = np.arcsin(-g) # pitch
-        phi = np.arcsin(h/np.cos(theta)) # roll
-        psi = np.arcsin(d/np.cos(theta)) # yaw
-    else: # have not yet implemented arctan2
-        print('  Not yet implemented arctan2 for four quadrants.  ')
-        theta = np.arcsin(-g) # pitch
-        phi = np.arcsin(h/np.cos(theta)) # roll
-        psi = np.arcsin(d/np.cos(theta)) # yaw
+        theta = np.arcsin(-r31) # pitch
+        phi = np.arcsin(r32/np.cos(theta)) # roll
+        psi = np.arcsin(r21/np.cos(theta)) # yaw
+    else: 
+        phi = np.arctan2(r32, r33) # roll
+        psi = np.arctan2(r21, r11) # yaw
+        theta = np.arctan2(-r31, r11/np.cos(psi)) # pitch
 
     rpy = np.array([phi, theta, psi])  # roll-pitch-yaw
     if bookConvention:

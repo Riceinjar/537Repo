@@ -78,3 +78,33 @@ print(R)
 
 
 #%%
+# hw4 prob 2 a&b
+
+R = tr.roty(np.pi/2) @ tr.rotz(np.pi/4)
+result = tr.R2axis(R)
+print('axis/angle = ', result)
+result = tr.R2quat(R)
+print('quaternion = ', result)
+
+#%%
+# hw4 prob 3a-c
+phi, theta, psi = sp.symbols("phi, theta, psi")
+display(tr.rotx(phi, symbolic=True))
+display(tr.roty(theta, symbolic=True))
+display(tr.rotz(psi, symbolic=True))
+display(tr.rotz(psi, symbolic=True) @ tr.roty(theta, symbolic=True) @ tr.rotx(phi, symbolic=True))
+
+
+# unit_v = 1/np.sqrt(3**2 + 2**2 + 5**2) * sp.Matrix([3, 2, 5])
+unit_v = sp.Matrix([0, 0, 1])
+print('Unit Vector initial: \n')
+sp.pprint(unit_v)
+print('\nUnit Vector after rotation: \n')
+sp.pprint(tr.rotz(psi, symbolic=True)  @  unit_v)
+
+
+
+
+
+
+# %%
