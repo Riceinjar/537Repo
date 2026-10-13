@@ -13,9 +13,13 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QLabel,
     QLineEdit,
-    QSpacerItem,
+    QCheckBox,
+    QDoubleSpinBox,
+    QGridLayout,
+    QScrollArea,
+    QTabWidget,
 )
-from PySide6.QtCore import QCoreApplication, QEvent, Qt
+from PySide6.QtCore import QCoreApplication, QEvent, QTimer, Qt
 import pyqtgraph.opengl as gl
 from pyqtgraph.opengl import shaders as gl_shaders
 from pyqtgraph.opengl.items.GLLinePlotItem import GLLinePlotItem
@@ -26,6 +30,17 @@ from matplotlib.patches import Circle
 from matplotlib.widgets import Slider
 from time import perf_counter, sleep, time
 import signal
+
+from .visualization_vectors import (
+    ArrowViz,
+    CircularArrowViz,
+    JointVelocityViz,
+    LINEAR_VELOCITY_COLOR,
+    ANGULAR_VELOCITY_COLOR,
+    LINEAR_TOTAL_COLOR,
+    ANGULAR_TOTAL_COLOR,
+    _finite_vector,
+)
 
 red = np.array([0.8, 0, 0, 1])
 green = np.array([0, 0.7, 0, 1])
@@ -46,8 +61,7 @@ def _register_lighter_arm_shader() -> None:
     gl_shaders.ShaderProgram(
         ARM_SHADER,
         [
-            gl_shaders.VertexShader(
-                """
+            gl_shaders.VertexShader("""
                 uniform mat4 u_mvp;
                 uniform mat3 u_normal;
                 attribute vec4 a_position;
@@ -60,10 +74,8 @@ def _register_lighter_arm_shader() -> None:
                     v_color = a_color;
                     gl_Position = u_mvp * a_position;
                 }
-                """
-            ),
-            gl_shaders.FragmentShader(
-                """
+                """),
+            gl_shaders.FragmentShader("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -74,8 +86,7 @@ def _register_lighter_arm_shader() -> None:
                     float brightness = 0.3 + 0.7 * light;
                     gl_FragColor = vec4(v_color.rgb * brightness, v_color.a);
                 }
-                """
-            ),
+                """),
         ],
     )
 
@@ -285,6 +296,8 @@ class VizScene:
         self.arms: list[ArmMeshObject] = []
         self.frames: list[FrameViz] = []
         self.axes: list[AxisViz] = []
+        self.arrows: list[ArrowViz] = []
+        self.circular_arrows: list[CircularArrowViz] = []
         self.markers: list[gl.GLMeshItem] = []
         self.obstacles: list[gl.GLMeshItem] = []
         self.range = 5
@@ -526,6 +539,60 @@ class VizScene:
         else:
             raise TypeError("Invalid index type")
         self.app.processEvents()
+
+    def add_arrow(
+        self, vector, pos=(0, 0, 0), scale=1.0, color=LINEAR_VELOCITY_COLOR, label=None
+    ):
+        """Add and return an updatable world-frame vector arrow.
+
+        Length is ``scale * ||vector||``; zero vectors are hidden. Update the
+        returned object with ``arrow.update(vector=..., pos=..., scale=...)``.
+        """
+        arrow = ArrowViz(vector, pos, scale, color, label)
+        self.arrows.append(arrow)
+        self.window.addItem(arrow.item)
+        self.app.processEvents()
+        return arrow
+
+    def add_circular_arrow(
+        self,
+        vector,
+        pos=(0, 0, 0),
+        scale=0.25,
+        color=ANGULAR_VELOCITY_COLOR,
+        label=None,
+        phase=0.0,
+    ):
+        """Add and return a right-hand-rule arrow around a world-frame vector.
+
+        Radius is ``scale * ||vector||``. ``pos`` is the center and ``phase``
+        is the starting angle in radians. Suitable for angular velocity/torque.
+        """
+        arrow = CircularArrowViz(vector, pos, scale, color, label, phase)
+        self.circular_arrows.append(arrow)
+        self.window.addItem(arrow.item)
+        self.app.processEvents()
+        return arrow
+
+    def _remove_vector_arrows(self, arrows, index):
+        if index is None:
+            for arrow in arrows:
+                self.window.removeItem(arrow.item)
+            arrows.clear()
+        elif isinstance(index, int):
+            self.window.removeItem(arrows[index].item)
+            arrows.pop(index)
+        else:
+            raise TypeError("Invalid index type")
+        self.app.processEvents()
+
+    def remove_arrow(self, index=None):
+        """Remove one straight arrow by insertion index, or all if None."""
+        self._remove_vector_arrows(self.arrows, index)
+
+    def remove_circular_arrow(self, index=None):
+        """Remove one circular arrow by insertion index, or all if None."""
+        self._remove_vector_arrows(self.circular_arrows, index)
 
     def add_marker(self, pos, color=green, radius=0.1):
         if not isinstance(pos, (np.ndarray)):
@@ -915,31 +982,87 @@ class VizScene:
 
 
 class ArmPlayer:
-    def __init__(self, arm, fontsize: int = 14):
+    def __init__(
+        self,
+        arm,
+        fontsize: int = 11,
+        *,
+        show_velocity_contributions=False,
+        q=None,
+        qd=None,
+        qdd=None,
+        linear_scale=1.0,
+        angular_scale=0.25,
+        autoplay=True,
+    ):
         """
         Opens a window with sliders to control the joints of the arm. This is
         blocking code until the window is closed.
 
         :param SerialArm arm: The arm to be visualized.
         :param int fontsize: The font size of the text in the side panel.
+        :param bool show_velocity_contributions: Enable velocity arrows and open
+            the Velocity tab. Otherwise start on the Position tab.
+        :param q: Initial positions in radians/meters; defaults to zeros.
+        :param qd: Joint rates in rad/s or m/s; defaults to ones for exploration.
+        :param qdd: Accelerations in rad/s^2 or m/s^2; defaults to zeros. Stored
+            for future overlays; no acceleration/dynamics display is computed.
+        :param float linear_scale: Display length per unit of linear velocity.
+        :param float angular_scale: Display radius per unit of angular velocity.
+        :param bool autoplay: If False, construct without starting the event loop.
         """
+        self.robot = arm
+        self.q = _finite_vector(np.zeros(arm.n) if q is None else q, arm.n, "q")
+        self.qd = _finite_vector(np.ones(arm.n) if qd is None else qd, arm.n, "qd")
+        self.qdd = _finite_vector(np.zeros(arm.n) if qdd is None else qdd, arm.n, "qdd")
         if QApplication.instance() is None:
             self.app: QApplication = QApplication([])
         else:
             self.app: QApplication = QApplication.instance()
 
         viz_widget = self._create_vizualization_widget(arm)
+        self.velocity_overlay = JointVelocityViz(
+            arm, viz_widget, linear_scale, angular_scale
+        )
         side_panel = self._create_side_panel_layout(arm)
 
         self.window = self._create_main_window(
             viz_widget, side_panel, fontsize, fraction_of_screen=0.7
         )
 
-        # should this be in constructor? It could be called by user - Mat
-        self.run()
+        self.set_state()
+        self.velocity_checkbox.setChecked(show_velocity_contributions)
+        if show_velocity_contributions:
+            self.kinematics_tabs.setCurrentIndex(1)
+        self._panel_width_timer = QTimer(self.window)
+        self._panel_width_timer.setSingleShot(True)
+        self._panel_width_timer.timeout.connect(self._fit_side_panel_width)
+        self.kinematics_tabs.currentChanged.connect(self._schedule_panel_width)
+        self._schedule_panel_width()
+        if autoplay:
+            self.run()
+
+    def _schedule_panel_width(self, _index=None):
+        # Qt finishes applying inherited fonts and tab geometry on the next
+        # event pass. The window owns the timer and cancels it on destruction.
+        self._panel_width_timer.start(0)
+
+    def _fit_side_panel_width(self):
+        if not self.window.isVisible():
+            return
+        scroll = self.kinematics_tabs.currentWidget()
+        chrome = self.side_panel_widget.width() - scroll.viewport().width()
+        self.side_panel_widget.setMinimumWidth(
+            max(
+                page.widget().minimumSizeHint().width()
+                for page in (self.position_scroll, self.velocity_scroll)
+            )
+            + chrome
+        )
 
     def run(self):
         self.window.show()
+        self._schedule_panel_width()
         self.window.raise_()
         signal.signal(signal.SIGINT, signal.SIG_DFL)  # kill with ctrl-c
         self.app.exec()
@@ -965,16 +1088,31 @@ class ArmPlayer:
 
         main_layout = QHBoxLayout()
         main_layout.addWidget(viz_widget, stretch=3)
-        main_layout.addLayout(side_panel_layout, stretch=1)
+        panel_widget = QWidget(window)
+        self.side_panel_widget = panel_widget
+        panel_widget.setLayout(side_panel_layout)
+        main_layout.addWidget(panel_widget, stretch=1)
 
-        main_widget = QWidget()
+        main_widget = QWidget(window)
         main_widget.setLayout(main_layout)
         window.setCentralWidget(main_widget)
+        # Measure after parenting so every control inherits the final font.
+        panel_widget.setMinimumWidth(
+            max(
+                scroll.widget().minimumSizeHint().width()
+                + scroll.verticalScrollBar().sizeHint().width()
+                + 2 * scroll.frameWidth()
+                for scroll in (self.position_scroll, self.velocity_scroll)
+            )
+            + 16
+        )
 
         return window
 
     def _create_vizualization_widget(self, arm):
+        _reset_opengl_shader_caches()
         viz_widget = gl.GLViewWidget()
+        self.viz_widget = viz_widget
         viz_widget.setBackgroundColor("w")
         viz_widget.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
@@ -984,8 +1122,9 @@ class ArmPlayer:
         grid.scale(1, 1, 1)
         viz_widget.addItem(grid)
 
-        self.arm = ArmMeshObject(arm)
+        self.arm = ArmMeshObject(arm, q0=self.q)
         viz_widget.addItem(self.arm.mesh_object)
+        viz_widget.setCameraPosition(distance=max(2 * arm.reach, 2.0))
         return viz_widget
 
     def _create_side_panel_layout(self, arm):
@@ -995,7 +1134,8 @@ class ArmPlayer:
         p_scale = 100  # slider increments by 1/100 m for prismatic joints
         self.jt_scale = np.array([r_scale if jt == "r" else p_scale for jt in self.jt])
 
-        panel = QVBoxLayout()
+        position_panel = QWidget()
+        panel = QVBoxLayout(position_panel)
 
         self.sliders: list[QSlider] = []
         self.slider_textboxes: list[QLineEdit] = []
@@ -1006,23 +1146,205 @@ class ArmPlayer:
             )
             panel.addLayout(joint_textbox, stretch=0)
             panel.addWidget(joint_slider, stretch=0)
-            panel.addSpacerItem(
-                QSpacerItem(
-                    20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
-                )
-            )
-        panel.addSpacerItem(
-            QSpacerItem(
-                20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
-            )
-        )
+            panel.addSpacing(4)
 
         button = QPushButton()
         button.setText("Randomize")
-        button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         button.pressed.connect(self._button_pressed)
         panel.addWidget(button)
-        return panel
+        panel.addStretch()
+
+        velocity_tab = QWidget()
+        velocity_layout = QVBoxLayout(velocity_tab)
+        self.velocity_checkbox = QCheckBox("Show velocity arrows")
+        self.velocity_checkbox.toggled.connect(self._toggle_velocity_panel)
+        velocity_layout.addWidget(self.velocity_checkbox)
+        self.velocity_status = QLabel()
+        self.velocity_status.setWordWrap(True)
+        velocity_layout.addWidget(self.velocity_status)
+        velocity_layout.addWidget(self._create_velocity_panel(arm))
+        velocity_layout.addStretch()
+
+        self.kinematics_tabs = QTabWidget()
+        self.position_scroll = self._create_scroll_panel(position_panel)
+        self.velocity_scroll = self._create_scroll_panel(velocity_tab)
+        self.kinematics_tabs.addTab(self.position_scroll, "Position")
+        self.kinematics_tabs.addTab(self.velocity_scroll, "Velocity")
+        side_panel = QVBoxLayout()
+        side_panel.setContentsMargins(0, 0, 0, 0)
+        side_panel.addWidget(self.kinematics_tabs)
+        return side_panel
+
+    def _create_scroll_panel(self, widget):
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        scroll.setWidget(widget)
+        return scroll
+
+    def _create_velocity_panel(self, arm):
+        self.velocity_panel = QWidget()
+        layout = QVBoxLayout(self.velocity_panel)
+        self.velocity_legend = QWidget()
+        legend_layout = QGridLayout(self.velocity_legend)
+        legend_layout.setContentsMargins(0, 0, 0, 0)
+        for row, (text, color, thickness) in enumerate(
+            [
+                ("Linear - sky blue, straight (m/s)", LINEAR_VELOCITY_COLOR, 3),
+                ("Angular - green, circular (rad/s)", ANGULAR_VELOCITY_COLOR, 3),
+                ("Selected linear total - blue, thick", LINEAR_TOTAL_COLOR, 6),
+                ("Selected angular total - vermilion, thick", ANGULAR_TOTAL_COLOR, 6),
+            ]
+        ):
+            sample = QLabel()
+            sample.setFixedSize(24, thickness)
+            sample.setStyleSheet(
+                "background-color: rgb(%d, %d, %d);"
+                % tuple(round(255 * c) for c in color[:3])
+            )
+            legend_layout.addWidget(sample, row, 0, Qt.AlignmentFlag.AlignVCenter)
+            legend_layout.addWidget(QLabel(text), row, 1)
+        layout.addWidget(self.velocity_legend)
+        explanation = QLabel(
+            "World-frame tip velocities. Rates default to 1; the pose stays fixed."
+        )
+        explanation.setWordWrap(True)
+        layout.addWidget(explanation)
+        table = QGridLayout()
+        for column, title in enumerate(["Joint", "Rate", "Linear", "Angular"]):
+            table.addWidget(QLabel(title), 0, column)
+        self.velocity_boxes = []
+        self.linear_checkboxes = []
+        self.angular_checkboxes = []
+        for i, jt in enumerate(arm.jt):
+            label = QLabel(str(i + 1))
+            table.addWidget(label, i + 1, 0)
+            rate = QDoubleSpinBox()
+            rate.setRange(-1e6, 1e6)
+            rate.setDecimals(6)
+            rate.setSingleStep(0.1)
+            rate.setSuffix(" rad/s" if jt == "r" else " m/s")
+            rate.valueChanged.connect(
+                lambda value, idx=i: self._update_rate(idx, value)
+            )
+            self.velocity_boxes.append(rate)
+            table.addWidget(rate, i + 1, 1)
+            for column, boxes, angular in [
+                (2, self.linear_checkboxes, False),
+                (3, self.angular_checkboxes, True),
+            ]:
+                box = QCheckBox()
+                box.setToolTip(
+                    f"Joint {i + 1} {'angular' if angular else 'linear'} tip velocity"
+                )
+                box.toggled.connect(
+                    lambda checked, idx=i, is_angular=angular: self._select_velocity(
+                        idx, is_angular, checked
+                    )
+                )
+                boxes.append(box)
+                table.addWidget(box, i + 1, column)
+        layout.addLayout(table)
+        self.total_velocity_button = QPushButton("Show selected total")
+        self.total_velocity_button.setCheckable(True)
+        self.total_velocity_button.setEnabled(False)
+        self.total_velocity_button.setToolTip(
+            "Thicker blue straight and vermilion circular arrows show the sums "
+            "of checked Linear and Angular contributions, independently."
+        )
+        self.total_velocity_button.toggled.connect(self._toggle_total_velocity)
+        layout.addWidget(self.total_velocity_button)
+        self.linear_scale_box = self._create_scale_box(
+            layout, "Linear length scale", self.velocity_overlay.linear_scale
+        )
+        self.angular_scale_box = self._create_scale_box(
+            layout, "Angular radius scale", self.velocity_overlay.angular_scale
+        )
+        return self.velocity_panel
+
+    def _create_scale_box(self, layout, title, value):
+        row = QHBoxLayout()
+        row.addWidget(QLabel(title))
+        box = QDoubleSpinBox()
+        box.setRange(1e-6, 1e6)
+        box.setDecimals(6)
+        box.setValue(value)
+        box.valueChanged.connect(self._update_velocity_scales)
+        row.addWidget(box)
+        layout.addLayout(row)
+        return box
+
+    def _toggle_velocity_panel(self, enabled):
+        self.total_velocity_button.setEnabled(enabled)
+        self.velocity_overlay.enabled = enabled
+        self._refresh_velocity_overlay()
+
+    def _toggle_total_velocity(self, checked):
+        self.velocity_overlay.total_enabled = checked
+        self.velocity_overlay.refresh_visibility()
+
+    def _select_velocity(self, idx, angular, checked):
+        selection = (
+            self.velocity_overlay.angular_selected
+            if angular
+            else self.velocity_overlay.linear_selected
+        )
+        selection[idx] = checked
+        self.velocity_overlay.refresh_visibility()
+
+    def _update_rate(self, idx, value):
+        qd = self.qd.copy()
+        qd[idx] = value
+        self.set_state(qd=qd)
+
+    def _update_velocity_scales(self, _value):
+        self.velocity_overlay.linear_scale = self.linear_scale_box.value()
+        self.velocity_overlay.angular_scale = self.angular_scale_box.value()
+        self._refresh_velocity_overlay()
+
+    def _refresh_velocity_overlay(self):
+        if not self.velocity_overlay.enabled:
+            self.velocity_overlay.refresh_visibility()
+            return
+        try:
+            self.velocity_overlay.update(self.q, self.qd)
+            self.velocity_status.clear()
+        except NotImplementedError:
+            # Preserve HW04 usage before the HW05 Jacobian is implemented.
+            self.velocity_status.setText(
+                "Velocity contributions require SerialArm.jacob (HW05). "
+                "Implement and check your Jacobian before enabling this view."
+            )
+            self.velocity_checkbox.setChecked(False)
+
+    def set_state(self, q=None, qd=None, qdd=None):
+        """Set a snapshot and refresh the controls and active overlay.
+
+        All three vectors have shape (n,), in radians/meters and their time
+        derivatives. Omitted vectors retain their values. Values are copied;
+        programmatic state is never rounded to slider resolution. Position
+        sliders remain bounded by the arm limits. This method does not advance
+        time or infer derivatives and can later be driven by a trajectory player.
+        """
+        q = self.q if q is None else _finite_vector(q, self.robot.n, "q")
+        qd = self.qd if qd is None else _finite_vector(qd, self.robot.n, "qd")
+        qdd = self.qdd if qdd is None else _finite_vector(qdd, self.robot.n, "qdd")
+        self.q, self.qd, self.qdd = q, qd, qdd
+        for i, slider in enumerate(self.sliders):
+            position = np.rad2deg(q[i]) if self.jt[i] == "r" else q[i]
+            slider.blockSignals(True)
+            slider.setValue(int(round(position * self.jt_scale[i])))
+            slider.blockSignals(False)
+            self.slider_textboxes[i].setText(f"{position:.8g}")
+            rate = self.velocity_boxes[i]
+            rate.blockSignals(True)
+            # Retain externally supplied rates beyond the initial editing range.
+            rate.setRange(min(-1e6, qd[i]), max(1e6, qd[i]))
+            rate.setValue(qd[i])
+            rate.blockSignals(False)
+        self.arm.update(q)
+        self._refresh_velocity_overlay()
 
     def _get_joint_limits(self, arm):
         default_lim_r = 180  # degrees
@@ -1053,7 +1375,7 @@ class ArmPlayer:
         box = QLineEdit()
         box.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         box.setText("0.0")
-        box.editingFinished.connect(self._update_textboxes)
+        box.editingFinished.connect(lambda: self._update_textboxes(idx))
         self.slider_textboxes.append(box)
 
         # joint units label
@@ -1074,52 +1396,34 @@ class ArmPlayer:
         s = QSlider(Qt.Orientation.Horizontal)
         s.setRange(*(joint_lims * scale).astype(int))
         s.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        s.valueChanged.connect(self._update_sliders)
+        idx = len(self.sliders)
+        s.valueChanged.connect(lambda _value: self._update_sliders(idx))
         self.sliders.append(s)
         return s
 
-    # NOTE: The following 3 update functions are inefficient because all buttons
-    # and sliders are updated when any one of them are changed. Could be optimized
-    # by adding unique update functions for each item in the constructor above.
-    # - Mat
-    def _update_sliders(self):
-        qs = np.zeros((self.arm.n,))
-        for i, s in enumerate(self.sliders):
-            q = s.value() / self.jt_scale[i]
-            if self.jt[i] == "r":
-                qs[i] = np.deg2rad(q)
-            else:
-                qs[i] = q
-            self.slider_textboxes[i].setText(f"{q}")
-        self.arm.update(qs)
+    def _update_sliders(self, idx):
+        qs = self.q.copy()
+        position = self.sliders[idx].value() / self.jt_scale[idx]
+        qs[idx] = np.deg2rad(position) if self.jt[idx] == "r" else position
+        self.set_state(q=qs)
 
-    def _update_textboxes(self):
-        qs = np.zeros((self.arm.n,))
-        for i, b in enumerate(self.slider_textboxes):
-            try:  # if the text box is empty or not a number, it will throw an error
-                q = float(b.text())
-                if q > self.jt_lims[i, 1]:
-                    q = self.jt_lims[i, 1]
-                elif q < self.jt_lims[i, 0]:
-                    q = self.jt_lims[i, 0]
-            except:  # if invalid text then just use the current slider value
-                q = self.sliders[i].value() / self.jt_scale[i]
-            self.sliders[i].setValue(int(q * self.jt_scale[i]))
-            if self.jt[i] == "r":
-                q = np.deg2rad(q)
-            qs[i] = q
-        self.arm.update(qs)
+    def _update_textboxes(self, idx):
+        qs = self.q.copy()
+        try:
+            position = float(self.slider_textboxes[idx].text())
+            if not np.isfinite(position):
+                raise ValueError("position must be finite")
+            position = np.clip(position, *self.jt_lims[idx])
+            qs[idx] = np.deg2rad(position) if self.jt[idx] == "r" else position
+        except ValueError:
+            pass  # Restore the current position after an invalid edit.
+        self.set_state(q=qs)
 
     def _button_pressed(self):
-        qs = np.empty(self.arm.n)
-        for i in range(self.arm.n):
-            q = np.random.uniform(*self.jt_lims[i])
-            if self.jt[i] == "r":
-                qs[i] = np.radians(q)
-            else:
-                qs[i] = q
-            self.sliders[i].setValue(int(q * self.jt_scale[i]))
-        self._update_textboxes()
+        qs = np.random.uniform(self.jt_lims[:, 0], self.jt_lims[:, 1])
+        rotary = np.array([jt == "r" for jt in self.jt])
+        qs[rotary] = np.deg2rad(qs[rotary])
+        self.set_state(q=qs)
 
 
 # TODO: add option for scale of joints, links, end-effector, and frames and backpropagate to add_arm
@@ -1337,9 +1641,7 @@ class LinkMeshObject:
 
             bottom_center = len(vertices)
             top_center = bottom_center + 1
-            vertices = np.vstack(
-                [vertices, [0.0, 0.0, 0.0], [0.0, 0.0, h]]
-            )
+            vertices = np.vstack([vertices, [0.0, 0.0, 0.0], [0.0, 0.0, h]])
             bottom_ring = np.arange(20, dtype=np.uint32)
             top_ring = bottom_ring + 10 * 20
             next_bottom_ring = np.roll(bottom_ring, -1)
