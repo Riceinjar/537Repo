@@ -242,7 +242,7 @@ class SerialArm:
         for i in range(start_frame, end_frame):
             T = T @ self.transforms[i](q[i])
 
-        if tip:
+        if tip and end_frame == self.n:
             T = T @ self.tip
         return T
         raise NotImplementedError("Complete SerialArm.fk for HW04")
@@ -274,23 +274,26 @@ class SerialArm:
         # we are calculating the Jacobian in the base frame.
         # HW05 student task
 
-        poi_T = self.fk(q, index, base, tip)
-        poi_p = poi_T[:3,3]
+        T_n = self.fk(q, index, base, tip)
+        p_n = T_n[:3,3]
         J = np.zeros((6, index))
         for i in range(0, index):
-            T = self.fk(q, index = i, base = base, tip = tip)
-            p = poi_p - T[:3,3]
-            Z = T[:3,:3] @ np.array([0,0,1])
+            T_i = self.fk(q, index = i, base = base, tip = tip)
+            p_i = T_i[:3,3]
+            p = p_n - p_i
+            # print("\n\n this is p right here: \n\n", p)
+            Z_i = T_i[:3,:3] @ np.array([0,0,1])
             if self.jt[i] == "r":
-                J_v = np.cross(Z, p)
-                J_w = Z
+                J_v = np.cross(Z_i, p)
+                J_w = Z_i
             else:
-                J_v = Z
+                J_v = Z_i
                 J_w = np.zeros((1, 3)) 
             J[:3,i] = J_v
             J[3:,i] = J_w
 
         # print("\nthis is J: \n", J)
+        J = np.round(J, decimals = 4)
         return J
         raise NotImplementedError("Complete SerialArm.jacob for HW05")
 
@@ -388,7 +391,35 @@ class SerialArm:
         # it's moving in the right direction towards the target.
 
         # HW06 student task
+        i = 0
+        converged = False
+        err = target - self.fk(q)[:3,3]
+        err_prev = err
+        while i < max_iter:
+            J = self.jacob(q)
+            J = J[:3, :]    # position only IK, so only use top 3 rows. Otherwise causes issues w the matrix
 
+            if method == 'pinv':
+                q_dot = J.T     @   np.linalg.inv(J @ J.T + kd**2 *np.eye(len(J)))   @  (K@err)
+            elif method == 'J_T':  
+                # q_dot = J.T @ (K@err)
+                err_dot = err - err_prev
+                q_dot = J.T @ (K@err + kd*err_dot)
+            else:
+                raise NotImplementedError("Method not found. Doublecheck.")
+
+            q = q + q_dot
+            i+=1
+            if np.linalg.norm(err) < tol:
+                converged = True
+                break
+            err_prev = err.copy()
+            err = target - self.fk(q)[:3,3]
+        qf = q
+        error_f = err
+        iters = i
+  
+        return (qf, error_f, iters, converged)
         raise NotImplementedError("Complete SerialArm.ik_position for HW06")
 
     def Z_shift(
