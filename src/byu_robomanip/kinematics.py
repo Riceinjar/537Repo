@@ -391,6 +391,10 @@ class SerialArm:
         # it's moving in the right direction towards the target.
 
         # HW06 student task
+        q_hist = [q.tolist()] 
+        q_dot_hist = [[0.0] * self.n]  
+
+
         i = 0
         converged = False
         err = target - self.fk(q)[:3,3]
@@ -415,10 +419,13 @@ class SerialArm:
                 break
             err_prev = err.copy()
             err = target - self.fk(q)[:3,3]
+            q_hist.append(q.tolist())
+            q_dot_hist.append(q_dot.tolist())
         qf = q
         error_f = err
         iters = i
-  
+        if debug == True:
+            return (qf, error_f, iters, converged, q_hist, q_dot_hist)
         return (qf, error_f, iters, converged)
         raise NotImplementedError("Complete SerialArm.ik_position for HW06")
 

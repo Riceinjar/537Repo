@@ -124,3 +124,65 @@ for q_i in range(len(q_list)):
 scene.close_viz
 
 # %%
+###########################################################################
+# extra debugging
+
+
+
+
+
+
+import numpy as np
+from byu_robomanip import transforms as tr
+from byu_robomanip import kinematics as kin
+from byu_robomanip.visualization import VizScene as viz
+dh = [
+    [0,        0.2, 0,   -np.pi / 2],
+    [0,        0,   0.2,  0],
+    [np.pi / 2, 0,   0,    np.pi / 2],
+    [np.pi / 2, 0.4, 0,   -np.pi / 2],
+    [0,        0,   0,    np.pi / 2],
+    [0,        0.4, 0,    0],
+]
+jt = ["r", "r", "r", "r", "r", "r"]
+arm = kin.SerialArm(dh, jt=jt)
+
+scene = viz()
+scene.add_arm(arm, draw_frames = True, label_axes=True)
+
+q_list = [[0, 0, 0, 0, 0, 0],
+          [np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4, np.pi/4]
+          ]
+
+goal_list = np.array([[-0.149,  0.364,  1.03],
+                [-0.171, -0.682, -0.192],
+                [ 0.822, -0.1878, 0.533],
+                [-0.336,  0.095,  0.931],
+                [ 0.335,  0.368,  0.88]
+                ])
+scene.add_marker([0, 0, 0])
+# scene.update(qs=[q_list[0]], poss = [goal_list[0]])
+# scene.hold(10)
+g = 2
+q_i = 1
+
+K = np.array([[1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]])
+qf, error_f, iters, converged, qh, qdh = arm.ik_position(
+    target = goal_list[g], 
+    q0 = q_list[q_i], 
+    # method = "J_T",
+    method = "pinv",
+    K = K,
+    max_iter = 100,
+    debug = True)
+
+# print(f"\nqh = ", qh)
+# print(f"\n qf for method J_T, target{g}, q{q_i} = ", qf)
+for i in range(0, len(qh), ):
+    print(f"\ncurrent q = ", qh[i])
+    print(f"\n current qdot = ", qdh[i])
+    scene.update(qs=[qh[i]], poss = [goal_list[g]])
+    scene.hold(1)
+scene.close_viz
