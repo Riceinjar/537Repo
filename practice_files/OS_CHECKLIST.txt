@@ -1,0 +1,173 @@
+ME 537 PRACTICE -- WINDOWS / macOS / LINUX CHECKLIST
+Use the same released practice ZIP on each OS to check the complete setup.
+Start with practice_files/README.md: its opening section explains Markdown
+preview, followed by the six numbered workflow steps. Use this checklist for
+additional OS troubleshooting and the faculty acceptance record.
+
+PYTHON RUN/DEBUG AND NEW TERMINALS
+Setup installs ms-python.python and ms-python.debugpy in the separate environment.
+Open a .py file to see their controls. Use Python: Select Interpreter and select
+the Python interpreter in your virtual environment. Open a new terminal and run:
+  python -c "import sys; print(sys.executable)"
+Expected: the path points to the Python interpreter in your virtual environment.
+If not, rerun setup with --python and that interpreter's path, select it in
+VS Code, then open a new terminal.
+On Windows, if PowerShell blocks Activate.ps1, use Terminal: Select Default
+Profile -> Command Prompt, then a new terminal; do not change execution policy.
+An explicit full Python executable path also works for commands without activation.
+
+SETUP
+1. Extract practice_files.zip to practice_files/ inside the repository.
+   The archive contains the files directly. Windows Extract All should target
+   your_repository\practice_files. Check src/ and practice_files/ share the
+   same parent folder, with README.md directly inside practice_files/.
+2. Use YOUR homework repository. You can reuse it for the exam after completing
+   practice cleanup in README Step 6. No instructor library is included in the ZIP.
+3. Open a terminal in that repository, with your course environment active.
+   In these commands python means that environment's interpreter. On macOS or
+   Linux it may be python3. Quote paths with spaces. Adjust practice_files paths
+   if you extracted the tools elsewhere.
+4. Record OS/version, CPU architecture, VS Code version and Python version.
+   Check the interpreter before continuing:
+     python -c "import sys, platform; print(sys.executable); print(sys.version); print(platform.platform())"
+   Windows: PowerShell or Command Prompt works; no administrator shell required.
+   macOS/Linux: a normal graphical desktop terminal works. A display/OpenGL is
+   required for animation; a headless SSH run is not a graphics pass.
+
+NUMERICAL / EXPORT CHECK
+  python practice_files/check_environment.py --repo . --export library_check_practice.zip
+Expected: individual PASS messages and RESULT: PASS for the library/export check.
+The output identifies the ZIP and library_check_practice_summary.txt beside it.
+Open that text summary; the same readable report is inside the ZIP along with
+practice_report.json. Graphics and recorder operation are not checked yet.
+If a ZIP or matching summary already exists, choose a new output ZIP name.
+
+VS CODE PROFILE / RECORDER CHECK
+  python practice_files/prepare_vscode.py --repo . --practice-demo --vsix practice_files/me537-exam-recorder.vsix --launch
+The script creates .me537_exam_profile/ and copies practice_motion.py into
+exam_helpers/ if missing. Rerunning setup keeps the file and any practice edits.
+Setup finds code on PATH. On macOS it also checks /Applications and
+~/Applications for Visual Studio Code.app and uses its inner CLI launcher.
+If code is unavailable, add --code followed by the full VS Code CLI path:
+  Windows: .../Microsoft VS Code/bin/code.cmd
+  macOS:   "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"
+  Linux:   installed code command, often /usr/bin/code
+Keep quotes around paths with spaces. The macOS .app is a folder, not the
+launcher file; current setup also accepts the .app path and finds the file inside.
+An alternative on macOS: in VS Code press Cmd+Shift+P, run Shell Command:
+Install 'code' command in PATH, open a new terminal and repeat setup.
+When using a custom --code path, keep it on --launch/--check commands too.
+The reopening command printed by setup includes a supplied --code override.
+For a bundled macOS installation, setup asks open -n -a to bring the separate
+instance forward with the same isolated profile/extension paths. It checks the
+launcher exit status and reports errors; acceptance does not confirm a visible UI.
+If only the Dock icon lights up, press Control+Up Arrow for Mission Control and
+check other desktops. If no ME537 window appears, run the reopening command
+from macOS Terminal or iTerm, in the repository with the homework venv active.
+The script verifies installation in its separate extension storage, then opens
+the ME537 window. If Restricted Mode appears at the bottom, click it, then
+click Trust for your homework repository folder. This enables debugging and
+the recorder. If Restricted Mode is not shown, continue.
+The status bar at the bottom should initially say ME537 recorder: OFF.
+
+Open VS Code's Command Palette: Ctrl+Shift+P on Windows/Linux, Cmd+Shift+P on macOS.
+Search for ME537 and select ME537: Start Disclosed Exam Session there. This is a
+VS Code action, not a PowerShell/Python terminal command. Accept the disclosure;
+check ON. The disclosure appears only when you select Start.
+
+If OFF or the ME537 commands are missing:
+- Use the window opened by the setup command, not an older normal VS Code window.
+- Reopen that same separate environment with:
+    python practice_files/prepare_vscode.py --repo . --launch
+- Check installation without opening a window:
+    python practice_files/prepare_vscode.py --repo . --check
+- In that window press Ctrl+Shift+X (Cmd+Shift+X on macOS), then search
+  @installed ME537. The recorder should be installed and enabled there.
+- If Restricted Mode is shown, click it, then Trust for this repository. If the status bar is
+  hidden, use View > Appearance > Status Bar. The Command Palette still provides
+  Start/Finish/Show Session Log even if the status item is hidden.
+- Run Developer: Reload Window from the Command Palette if installation just
+  finished. If commands remain missing, preserve the setup output for support.
+- Do not open ME537.code-workspace by itself and assume the same extension
+  storage is used. Opening it normally may use your usual VS Code environment.
+
+Open exam_helpers/practice_motion.py, change PRACTICE_NOTE to describe this OS
+test, and save. Type a short comment. Optionally paste several lines of your OWN
+practice comments to check that a larger edit's context is visible in the log.
+Keep the supplied joint-angle table and homework methods unchanged for this
+setup exercise. Do not use generative AI to complete the practice edit.
+
+VISIBLE MOTION / SAVED OUTPUT CHECK
+In the terminal of the prepared VS Code window, activate the same Python
+environment again if needed, then run:
+  python exam_helpers/practice_motion.py --output results_practice
+If the output already exists, either delete that folder and its contents if
+no longer needed, or change --output to a new folder name (e.g. results_2_practice).
+Use the new name in later file paths and --demo-results. Other options stay the same.
+Expected: a two-link mesh arm moves through supplied joint angles for about six
+seconds using the supplied joint-angle table.
+Wait for Motion complete, then close the window. Open results_practice/preview.png.
+Check results_practice/practice_report.json: graphics.status should be completed,
+frames_rendered should equal frames_expected (121). Confirm trajectory.npy
+and joint_angles.csv exist. A closed-early window reports interrupted.
+
+Optional: view the saved angles again (or continue directly to Finish/export):
+  python exam_helpers/practice_motion.py --trajectory results_practice/trajectory.npy
+This only displays the saved data. It creates no results folder and changes no
+saved output. Omit --output when replaying.
+
+FINISH / EXPORT CHECK
+Save files. Run ME537: Finish Session; check FINISHED. The exporter includes the
+session log automatically for the instructor; students do not need to inspect it.
+Run the export command below; README.md Step 6 explains every argument:
+  python practice_files/check_environment.py --repo . --export exam_practice.zip --demo-results results_practice --require-session
+Expected: RESULT: PASS for the export, an included completed animation report,
+an included finished recorder session, and a readable summary with the file list.
+If motion or recording is incomplete, the output tells you which step remains.
+Check the summary's included-file list for:
+  exam_helpers/practice_motion.py        your saved practice source
+  practice_motion/trajectory.npy        recorded joint trajectory
+  practice_motion/joint_angles.csv      readable time/joint-angle table
+  practice_motion/practice_report.json  numerical/graphics/OS report
+  practice_motion/preview.png           robot-only preview
+  exam_session/events.jsonl             disclosed edit records
+  exam_session/snapshots/*.json         disclosed source checkpoints
+  practice_report.json                  fresh-process export check
+  practice_summary.txt                  readable results and included-file list
+  practice_manifest.json                local file hashes
+The saved trajectory provides the joint data needed for instructor playback.
+The profile, venv, Git tree, credentials and unrelated files are excluded.
+The readable summary is also saved beside the ZIP, named exam_practice_summary.txt.
+Upload exam_practice.zip on Learning Suite as your practice submission. This
+upload is required to receive a score and grade for Part 2. The actual exam
+requires a separate completed exam ZIP; follow its README for that submission.
+
+AFTER UPLOAD: PRACTICE CLEANUP
+Confirm the Learning Suite upload first. Close the ME537 VS Code window, open
+a regular terminal in the practice repository, and activate your virtual environment:
+  python practice_files/cleanup_practice.py --repo . --archive exam_practice.zip --apply
+Use the name of your exported ZIP after --archive. Omit --apply for a preview.
+Cleanup keeps that ZIP, its summary, practice_files/ and your own library. It
+removes verified exported practice results/demo/recording, preliminary library
+exports, and the generated .me537_exam_profile/. Changed files stop cleanup.
+After cleanup finishes, reuse this repository and virtual environment for the
+exam if desired. Keep the practice ZIP and follow the exam README for a new recording.
+
+IF A CHECK FAILS
+- Numerical/import: confirm the interpreter and your own src/byu_robomanip.
+  Install requirements.txt only if your course numerical dependencies are missing.
+- Graphics: preserve practice_report.json and terminal errors. If dependencies
+  are missing, install requirements-graphics.txt in the course environment.
+  On Linux, display-server/OpenGL driver issues may need local support; do not
+  count --no-gui as a full graphics pass. The script never installs OS packages.
+- Recorder: preserve exam_session/. Check Restricted Mode is cleared, the isolated profile,
+  installed recorder, and OFF/ON/FINISHED/ERROR status. An error is a setup issue.
+- Export: finish the session, use a NEW ZIP name, and keep results inside the
+  practice repository. Export without --require-session if support needs an
+  incomplete recording report, but identify that it is not a complete rehearsal.
+
+FACULTY ACCEPTANCE RECORD (one row per machine)
+OS/version | architecture | Python | VS Code | numerical/export | graphics/replay
+recorder start/edit/finish | full ZIP contents | error notes
+Keep the resulting ZIP for comparison. Passing here checks setup and workflow;
+it does not certify homework correctness, exam readiness or independent authorship.

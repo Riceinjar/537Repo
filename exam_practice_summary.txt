@@ -1,0 +1,51 @@
+ME 537 PRACTICE CHECK
+
+RESULT: PASS - your library export was created and tested.
+
+Checks completed:
+  PASS: Found your homework library in src/byu_robomanip.
+  PASS: Loaded the library from this repository.
+  PASS: Forward kinematics returned a finite 4-by-4 transform.
+  PASS: The two-link Jacobian returned a finite 6-by-2 matrix.
+  PASS: The exported library ran in a fresh Python process.
+
+Python: 3.14.7 | OS: Windows | CPU: AMD64
+ZIP: exam_practice.zip
+Detailed report inside the ZIP: practice_report.json
+
+Included animation report: completed
+Included recorder session: finished
+This export command does not rerun the animation or verify recorder completeness.
+Final recording / exported source comparison: MATCH
+Next: upload exam_practice.zip on Learning Suite. This upload is required to receive a score and grade for Part 2. The session log is included automatically; you do not need to inspect it.
+
+This is a setup and packaging check, not a grade or a check of numerical accuracy.
+
+Files included in the ZIP (27):
+  check_environment.py
+  exam_helpers/practice_motion.py
+  exam_session/events.jsonl
+  exam_session/session.json
+  exam_session/snapshots/b69975bd-94a0-486d-815c-60306292855b-0000002.json
+  exam_session/snapshots/b69975bd-94a0-486d-815c-60306292855b-0000130.json
+  exam_session/snapshots/b69975bd-94a0-486d-815c-60306292855b-0000167.json
+  exam_session/snapshots/b69975bd-94a0-486d-815c-60306292855b-0000176.json
+  practice_manifest.json
+  practice_motion/joint_angles.csv
+  practice_motion/practice_report.json
+  practice_motion/preview.png
+  practice_motion/trajectory.npy
+  practice_report.json
+  practice_summary.txt
+  recording_integrity.json
+  recording_integrity.py
+  src/byu_robomanip/__init__.py
+  src/byu_robomanip/dynamics.py
+  src/byu_robomanip/kinematics.py
+  src/byu_robomanip/symbolic/__init__.py
+  src/byu_robomanip/symbolic/dynamics.py
+  src/byu_robomanip/symbolic/kinematics.py
+  src/byu_robomanip/transforms.py
+  src/byu_robomanip/utility.py
+  src/byu_robomanip/visualization.py
+  src/byu_robomanip/visualization_vectors.py
