@@ -1,4 +1,7 @@
+#%%
 import numpy as np
+from byu_robomanip.visualization import ArmPlayer
+from byu_robomanip.kinematics import SerialArm
 
 # these DH parameters are based on solutions from HW 3, if you
 # pick a different set that still describes the robots accurately,
@@ -17,3 +20,5 @@ dh_part_b = [
     [0, d_len * 2, 0, 0],
 ]
 
+
+#%%
