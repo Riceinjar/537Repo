@@ -1,0 +1,4 @@
+# Optional additional INSTALLED distribution names, one per line, e.g.:
+# networkx
+# Do not put pip commands, URLs, local paths, or credentials here.
+# NumPy, SciPy and SymPy are recorded automatically when installed.

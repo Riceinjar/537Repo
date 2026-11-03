@@ -1,0 +1,21 @@
+{
+  "initial_configuration_matches": true,
+  "expected_first_configuration": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "returned_first_configuration": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "maximum_joint_step": 0.150072493916492,
+  "joint_step_review_threshold": 0.1,
+  "large_joint_step": true,
+  "review_flags": [
+    "Large joint change recorded for instructor review. 0.10 is a review threshold, not a pass/fail limit."
+  ]
+}

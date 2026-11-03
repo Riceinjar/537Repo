@@ -1,0 +1,10 @@
+{
+  "reason": "five_minute_checkpoint",
+  "utc": "2026-10-26T17:11:10.896Z",
+  "files": {
+    "part2_exam_files/exam_robot.py": {
+      "sha256": "a21fa8823acf32e376a03e7ced5b9265887523e79722eb32a4a75eac25d641d9",
+      "text": "\"\"\"Define your robot here, then run this file to check its appearance.\"\"\"\n\nimport numpy as np\nfrom byu_robomanip import kinematics as kin\n\n\ndh = [[np.pi/2, 4, 0, np.pi/2],\n      [np.pi/6, 0, 0, np.pi/2],\n      [0, 4, 0, np.pi/2],\n      [np.pi/6, 0, 2, np.pi/2]]\n\n\narm = kin.SerialArm(dh)\n\n\nif __name__ == \"__main__\":\n    # This preview runs only when you run exam_robot.py directly.\n    from byu_robomanip.visualization import VizScene\n\n    viz = VizScene()\n    viz.add_arm(arm, draw_frames=True, gripper_scale=1, label_axes=True)\n    viz.update(qs=[np.zeros(arm.n).tolist()])\n    viz.hold()\n"
+    }
+  }
+}

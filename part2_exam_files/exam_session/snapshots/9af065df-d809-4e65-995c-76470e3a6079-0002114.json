@@ -1,0 +1,10 @@
+{
+  "reason": "five_minute_checkpoint",
+  "utc": "2026-10-26T17:51:10.962Z",
+  "files": {
+    "part2_exam_files/exam_robot.py": {
+      "sha256": "8a4c35e158a8e8b51abab84fd5f7d434090769f30a9292e88bb8e4902134645f",
+      "text": "\"\"\"Define your robot here, then run this file to check its appearance.\"\"\"\n\nimport numpy as np\nfrom byu_robomanip import kinematics as kin\n\n\ndh = [[np.pi/2, 4, 0, np.pi/2],\n      [np.pi/6, 0, 0, np.pi/2],\n      [0, 4, 0, np.pi/2],\n      [np.pi/6, 0, 2, np.pi/2]]\n\n\narm = kin.SerialArm(dh)\n\n\nif __name__ == \"__main__\":\n    # This preview runs only when you run exam_robot.py directly.\n    from byu_robomanip.visualization import VizScene\n\n    viz = VizScene()\n    viz.add_arm(arm, draw_frames=True, gripper_scale=1, label_axes=True)\n    # viz.update(qs=[np.zeros(arm.n).tolist()])\n    \n\n    q = [0, 0, 0, 0]\n    target = np.array([3,3,3])\n    # target = arm.fk(q)[:3,3]\n    K = .01*np.array([[1, 0, 0],\n                [0, 1, 0],\n                [0, 0, 1]])\n\n    qf, error_f, iters, converged, q_hist, qdot_hist = arm.ik_position(\n        target = target, \n        q0 = q, \n        method = \"pinv\",\n        K = K,\n        max_iter = 100)\n    \n    viz.add_marker(target, radius = .5)  \n\n\n    anim_iterations = True # if you want vizscene to show the arm moving along each iteration, instead of just the final one\n    if anim_iterations == True:\n        iter_skip = 10 ######### number of iterations to skip bt arm animation frames\n        q_hist_copy = []\n        q_hist_copy.append(q_hist)\n        i = 0\n        while i < len(q_hist_copy):\n            i = i + iter_skip\n            q_hist.pop(i)\n        for q in q_hist:\n            viz.update(qs=[q], poss=[target])\n            viz.hold(1)\n    else:\n        viz.update(qs=[qf], poss=[target])\n\n    viz.hold()\n"
+    }
+  }
+}

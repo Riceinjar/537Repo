@@ -1,0 +1,10 @@
+The code I implemented is able get the robot arm tip to avoid obstacles, however it is not able to avoid obstacles along
+the entire arm. This is due to the fact I resorted to planning a path of targets around the obstacle, but was not able
+to implement a method to push joints themselves away from an obstacles. My code works by discretizing a list of targets from the 
+initial tip position to the goal, and then 'pushing' points along this target path that are close to the obstacle.
+
+I feel like I could have made a way to simulate a force
+applied to joints or locations on the arm links if they strayed close to an obstacle, using the techniques we learned with wrenches,
+but it would have required changing my ik_position function in the kinematics.py file. I also could have used the method I went with,
+but created additional smaller 'arms' that only went to the second to last joint, modifying that as a 'target' and then combining that 
+result with my other target list to move the second to last joint away from the obstacle as well.

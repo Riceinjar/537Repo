@@ -1,0 +1,5 @@
+# Shared practice/exam dependencies, matching course numerical minimums.
+# Final grading needs one faculty-tested, version-locked environment.
+numpy>=1.24
+scipy>=1.10
+sympy>=1.12

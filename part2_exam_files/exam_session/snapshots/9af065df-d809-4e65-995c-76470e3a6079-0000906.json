@@ -1,0 +1,10 @@
+{
+  "reason": "five_minute_checkpoint",
+  "utc": "2026-10-26T17:31:10.933Z",
+  "files": {
+    "part2_exam_files/exam_robot.py": {
+      "sha256": "6259ec2f94befc577b73cf8c56ac60ca657b9d09887f3f0dff61a867ae5558a1",
+      "text": "\"\"\"Define your robot here, then run this file to check its appearance.\"\"\"\n\nimport numpy as np\nfrom byu_robomanip import kinematics as kin\n\n\ndh = [[np.pi/2, 4, 0, np.pi/2],\n      [np.pi/6, 0, 0, np.pi/2],\n      [0, 4, 0, np.pi/2],\n      [np.pi/6, 0, 2, np.pi/2]]\n\n\narm = kin.SerialArm(dh)\n\n\nif __name__ == \"__main__\":\n    # This preview runs only when you run exam_robot.py directly.\n    from byu_robomanip.visualization import VizScene\n\n    viz = VizScene()\n    viz.add_arm(arm, draw_frames=True, gripper_scale=1, label_axes=True)\n    # viz.update(qs=[np.zeros(arm.n).tolist()])\n\n    q = [0, 0, 0, 0]\n    # target = np.array([0,0,0])\n    target = arm.fk(q)[:3,3]\n    K = np.array([[1, 0, 0],\n                [0, 1, 0],\n                [0, 0, 1]])\n    qf, error_f, iters, converged = arm.ik_position(\n        target = target, \n        q0 = q, \n        method = \"J_T\",\n        K = K,\n        max_iter = 100)\n    \n    viz.add_marker(target, radius = .5)  \n    viz.update(qs=[qf], poss=[target])\n\n\n\n\n\n    viz.hold()\n"
+    }
+  }
+}

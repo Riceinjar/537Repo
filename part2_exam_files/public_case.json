@@ -1,0 +1,6 @@
+{
+  "q_init": [0, 0, 0, 0],
+  "goal": [0, 2, 4],
+  "obst_location": [0, 3, 2],
+  "obst_radius": 1.0
+}
