@@ -461,14 +461,28 @@ class SerialArm:
         #       expressed in as it changes the form of the shifting matrix.
         # HW07 student task
 
-        r_cross_mat = -skew(p)
-        if p_frame == "j":
-            r_cross_mat = -R @ r_cross_mat
-        Z = np.zeros((6,6))
-        Z[:3,:3] = R
-        Z[-3:, -3:] = R
-        Z[:3, -3:] = r_cross_mat
 
+        from scipy.linalg import block_diag
+        S = skew(p)
+        Z_trans = np.eye(6)
+        Z_trans[0:3, 3:] = -S
+        Z_rot = block_diag(R, R)
+        if p_frame == "i":
+            Z = Z_rot @ Z_trans
+        if p_frame == "j":
+            Z = Z_trans @ Z_rot
+
+
+
+        # r_cross_mat = -skew(p)
+        # if p_frame == "i":
+        #     r_cross_mat = R @ r_cross_mat
+        # if p_frame == "j":
+        #     r_cross_mat = R @ R.T @ r_cross_mat
+        # Z = np.zeros((6,6))
+        # Z[:3,:3] = R
+        # Z[-3:, -3:] = R
+        # Z[:3, -3:] = r_cross_mat
 
         return Z
         raise NotImplementedError("Complete SerialArm.Z_shift for HW07")
