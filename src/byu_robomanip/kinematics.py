@@ -461,6 +461,16 @@ class SerialArm:
         #       expressed in as it changes the form of the shifting matrix.
         # HW07 student task
 
+        r_cross_mat = -skew(p)
+        if p_frame == "j":
+            r_cross_mat = -R @ r_cross_mat
+        Z = np.zeros((6,6))
+        Z[:3,:3] = R
+        Z[-3:, -3:] = R
+        Z[:3, -3:] = r_cross_mat
+
+
+        return Z
         raise NotImplementedError("Complete SerialArm.Z_shift for HW07")
 
 
