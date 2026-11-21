@@ -30,8 +30,8 @@ class SerialArmDyn(SerialArm):
         base=np.eye(4),
         tip=np.eye(4),
         joint_limits=None,
-        mass=None,
-        r_com=None,
+        mass=None, # list of masses for each link
+        r_com= None, 
         link_inertia=None,
         motor_inertia=None,
         joint_damping=None,
@@ -87,13 +87,179 @@ class SerialArmDyn(SerialArm):
         # TODO: Implement the recursive Newton-Euler dynamics calculation.
         # HW08 student task
 
+
+        #################################################################### OLD ############################################
+        # ############# forward pass, find omega, alpha, a_com for each link       
+        # ## parameters initializing 
+        # Z_im1N0 = (self.base[:3,:3]).T[2] # third column of R_im1N0
+        # r_Eim1_Ei_Ni = self.base[:3,:3].T @ self.base[:3,3]
+        # r_Eim1_COMi_Ni = r_Eim1_Ei_Ni * 1/2 # I don't have this distance so, just going to make do here.
+        # omega_im1Nim1 = omega_base
+        # alpha_im1Nim1 = alpha_base
+        # v_Eim1Nim1 = v_base
+        # a_Eim1Nim1 = acc_base
+
+
+        # for i in range(1, self.n + 1): # iterate from 1 to n
+        #     ## i specific parameters
+        #     I_COMiNi = self.link_inertia[i-1]
+        #     R_im1Ni = (self.fk(q, (i-1, i))[:3,:3]).T
+        #     R_0Ni = (self.fk(q, i)[:3,:3]).T
+
+        #     ## calculation
+        #     omega_iNi  = R_im1Ni @ omega_im1Nim1 + R_0Ni @ Z_im1N0 * qd[i-1] 
+        #     alpha_iNi = R_im1Ni @ alpha_im1Nim1 + R_0Ni @ Z_im1N0 * qdd[i-1] + np.cross(omega_iNi, R_0Ni) @ Z_im1N0 * qd[i-1] 
+        #     v_COMiNi = R_im1Ni @ v_Eim1Nim1 + np.cross(omega_iNi, r_Eim1_COMi_Ni)
+        #     v_EiNi = R_im1Ni @ v_Eim1Nim1 + np.cross(omega_iNi, r_Eim1_Ei_Ni)
+        #     a_COMiNi = R_im1Ni @ a_Eim1Nim1 + np.cross(alpha_iNi, r_Eim1_COMi_Ni) + np.cross(omega_iNi, np.cross(omega_iNi, r_Eim1_COMi_Ni))
+        #     a_EiNi = R_im1Ni @ a_Eim1Nim1 + np.cross(alpha_iNi, r_Eim1_Ei_Ni) + np.cross(omega_iNi, np.cross(omega_iNi, r_Eim1_Ei_Ni))
+
+        #     ## update parameters
+        #     Z_im1N0 = (self.fk(q, i-1)[:3,:3]).T[2] # gives 3rd column of R_im1N0
+        #     r_Eim1_Ei_Ni = R_im1Ni @ self.fk(q, (i-1, i))[:3, 3]
+        #     r_Eim1_COMi_Ni = r_Eim1_Ei_Ni - self.r_com[i-1]
+        #     omega_im1Nim1 = omega_iNi
+        #     alpha_im1Nim1 = alpha_iNi
+        #     v_Eim1Nim1 = v_EiNi
+        #     a_Eim1Nim1 = a_EiNi
+
+
+        #     ## append lists
+        #     omega.append(omega_iNi)
+        #     alpha.append(alpha_iNi)
+        #     v_COM.append(v_COMiNi)
+        #     v_E.append(v_EiNi)
+        #     a_COM.append(a_COMiNi)
+        #     a_E.append(a_EiNi)
+
+
+        # ############# backward pass, find f and tau for each joint
+        # ## parameters initializing
+        # R_np1Nn = self.tip[:3, :3]
+        # f_ip1Ni = R_np1Nn @ Wext[:3] # first would be for end effector
+        # tau_ip1Ni = R_np1Nn @ Wext[3:] # first would be for end effector
+        # r_Eim1_COMi_Ni = self.tip[:3,3] * 1/2  # again just making do for this
+        # r_Ei_COMi_Ni = -self.tip[:3,3] - r_Eim1_COMi_Ni
+
+
+        # for i in range(self.n, 0, -1): # iterate from n to 1
+        #     ## i specific parameters
+        #     I_COMiNi = self.link_inertia[i-1]
+        #     R_im1Ni = (self.fk(q, (i-1, i))[:3,:3]).T
+        #     R_0Ni = (self.fk(q, i)[:3,:3]).T
+
+        #     ## calculation
+        #     f_iNi  = -self.mass[i-1] * R_0Ni @ g - f_ip1Ni + self.mass[i-1] @ a_COM[i-1]
+        #     tau_iNi = -tau_ip1Ni - np.cross(f_ip1Ni, r_Ei_COMi_Ni) - np.cross(f_ip1Ni, r_Eim1_COMi_Ni) + I_COMiNi @ alpha[i-1] + np.cross(omega[i-1], I_COMiNi @ omega[i-1])
+            
+        #     ## update parameters
+        #     f_ip1Ni = f_iNi
+        #     tau_ip1Ni = tau_iNi
+        #     r_Ei_COMi_Ni = self.r_com[i-1]
+        #     r_Eim1_COMi_Ni = (self.fk(q, (i-1,i))[:3,:3]).T @ self.fk(q, (i-1,i))[:3,3] - r_Ei_COMi_Ni
+
+        #     ## append lists
+        #     f.insert(0, f_iNi)
+        #     tau.insert(0, tau_iNi)
+        #################################################################### OLD ############################################
+
+
+
+
+
+        #### Initialization
+        omega = [] # omegas for links 1 through n, in frames 1 through n
+        alpha = []
+        v = [] # velocities at joints
+        v_COM = [] # velocities at COM of link
+        a = [] 
+        a_COM = []
+        tau = np.zeros((self.n,)) # 1xn array that holds the torque values for each joint
+        Wrenches = np.zeros((6, self.n)) # 6xn array that holds the "external" forces and moments applied to each joint.
+        R = []
+        R0 = []
+        zaxes = []
+        r = [] # from frame i-1 to frame i, in frame i
+        r_COM = self.r_com # from frame i to COM of body i, in frame i
+
+        ## Only one call to self.fk per joint is better. 
+        for i in range(self.n): 
+            T = self.fk(q, (i, i+1)) 
+            R_i = T[:3, :3]
+            p = T[:3, 3]
+            R.append(R_i)
+            r.append(R_i.T @ p)
+            R0.append(self.fk(q, i+1)[:3, :3])
+            zaxes.append(R_i.T[0:3, 2])
+            
+
+        #### Forward Pass
+        omega_prev = omega_base # initial base ang velocity
+        alpha_prev = alpha_base
+        v_prev = v_base
+        a_prev = acc_base
+        for i in range(self.n): # iterates for values joint/link 1 to joint/link n
+            if self.jt[i] != "r": raise NotImplementedError("Yeah so not sure that this rne() method of SerialArmDyn works for non-revolute joints")
+            omega.append(
+                R[i].T @ omega_prev + zaxes[i] * qd[i]
+            )  
+            alpha.append(
+                R[i].T @ alpha_prev + zaxes[i] * qdd[i] + np.cross(omega[i], zaxes[i]) * qd[i]
+            )
+            v.append(
+                R[i].T @ v_prev + np.cross(omega[i], r[i])
+            )
+            v_COM.append(
+                R[i].T @ v_prev + np.cross(omega[i], r[i]+r_COM[i])
+            )
+            a.append(
+                R[i].T @ a_prev + np.cross(alpha[i], r[i]) + np.cross(omega[i], np.cross(omega[i], r[i]))
+            )
+            a_COM.append(
+                R[i].T @ a_prev + np.cross(alpha[i], r[i]+r_COM[i]) + np.cross(omega[i], np.cross(omega[i], r[i]+r_COM[i]))
+            )
+
+            omega_prev = omega[i]
+            alpha_prev = alpha[i]
+            v_prev = v[i]
+            a_prev = a[i]
+
+        #### Backward Pass
+        f_prev = self.tip[:3,:3]@Wext[:3]
+        moment_prev = self.tip[:3,:3]@Wext[3:]
+        for i in range(self.n-1, -1, -1): # iterates from joint/link n down to joint/link 1
+            f = self.mass[i] * (a_COM[i] - R0[i].T @ g) + f_prev
+            moment = (  + moment_prev 
+                        - np.cross(f, r[i] + r_COM[i])
+                        + np.cross(f_prev, r_COM[i]) 
+                        + self.link_inertia[i] @ alpha[i] 
+                        + np.cross(omega[i], (self.link_inertia[i] @ omega[i]))
+                        )
+            Wrenches[:3, i] = f 
+            Wrenches[3:, i] = moment
+            f_prev = R[i] @ f
+            moment_prev = R[i] @ moment
+   
+
+        for i in range(self.n):
+            tau[i] = zaxes[i] @ Wrenches[3:, i] # need portion of moment in direction of the joint q
+        return tau, Wrenches
         raise NotImplementedError("Complete SerialArmDyn.rne for HW08")
+
+
+
 
     def get_M(self, q):
         """Return the numerical joint-space mass matrix M(q)."""
         # TODO: Compute the numerical joint-space mass matrix M(q).
         # HW08 student task
-
+        M = np.zeros((self.n, self.n))
+        for i in range(self.n):
+            qdd = np.zeros((self.n,))
+            qdd[i] = 1
+            tau, _ = self.rne(q, np.zeros((self.n,)), qdd)
+            M[:,i] = tau
+        return M
         raise NotImplementedError("Complete SerialArmDyn.get_M for HW08")
 
     def get_C(self, q, qd):
@@ -104,7 +270,8 @@ class SerialArmDyn(SerialArm):
         """
         # TODO: Compute the numerical Coriolis/centrifugal vector C(q, qd) @ qd.
         # HW08 student task
-
+        C_qd, _ = self.rne(q, qd, np.zeros((self.n,)))
+        return C_qd
         raise NotImplementedError("Complete SerialArmDyn.get_C for HW08")
 
     def get_G(self, q, g):
@@ -115,7 +282,9 @@ class SerialArmDyn(SerialArm):
         """
         # TODO: Compute the numerical gravity generalized-force vector G(q).
         # HW08 student task
+        G, _ = self.rne(q, np.zeros((self.n,)), np.zeros((self.n,)), g=g) # default arg for Wext is zeros
 
+        return G
         raise NotImplementedError("Complete SerialArmDyn.get_G for HW08")
 
 
